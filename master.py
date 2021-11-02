@@ -62,11 +62,11 @@ async def info(vm_id):
 
 @app.get("/add")
 async def add():
-    ec2conn = boto.connect_ec2_endpoint(EC2_URL, aws_access_key_id=EC2_ACCESS_KEY, aws_secret_access_key=EC2_SECRET_KEY)
+    ec2_conn = boto.connect_ec2_endpoint(EC2_URL, aws_access_key_id=EC2_ACCESS_KEY, aws_secret_access_key=EC2_SECRET_KEY)
     with open("start_node.sh") as f:
         udata = f.read()
 
-    reservation = ec2conn.run_instances(
+    reservation = ec2_conn.run_instances(
         image_id=TEMPLATE_ID,
         key_name=KEY_NAME,
         instance_type=INSTANCE_TYPE,
@@ -118,8 +118,20 @@ def check_cpu() -> None:
                                                 dimensions={"InstanceId": [instance.id]},
                                                 metric_name="CPUUtilization", statistics=["Maximum"], unit="Percent")
             if CPU["Maximum"] > 70:
-                print('ALARM')
-                return RedirectResponse('/add')
+                with open("start_node.sh") as f:
+                    udata = f.read()
+
+                reservation = ec2_conn.run_instances(
+                    image_id=TEMPLATE_ID,
+                    key_name=KEY_NAME,
+                    instance_type=INSTANCE_TYPE,
+                    security_group_ids=[SECURITY_GROUP],
+                    subnet_id=SUBNET_ID,
+                    user_data=udata
+                )
+
+                new_instance = reservation.instances[0]
+                new_instance.add_tag("role", "worker")
 
 
 if __name__ == "__main__":
