@@ -1,7 +1,6 @@
 from cpu_load_generator import load_all_cores
 from fastapi import FastAPI, Request
 import requests
-import json
 import psutil
 import boto
 from boto.ec2.cloudwatch import CloudWatchConnection
@@ -45,14 +44,26 @@ async def info():
     return {t: requests.get("http://169.254.169.254/latest/meta-data/{type}".format(type=t)).text for t in metadata_types}
 
 
+@app.get("/info/{vm_id}")
+async def info(vm_id):
+    ec2_conn = boto.connect_ec2_endpoint(EC2_URL, aws_access_key_id=EC2_ACCESS_KEY,
+                                         aws_secret_access_key=EC2_SECRET_KEY)
+
+    for reservation in ec2_conn.get_all_instances(filters={"subnet-id": SUBNET_ID, "tag:role": "worker"}):
+        for instance in reservation.instances:
+            if instance.id == vm_id:
+                return requests.get("http://{private_ip_address}/info".format(private_ip_address=instance.private_ip_address))
+
+    return {"detail": "Instance with such id doesn't exist"}
+
+
 @app.get("/add")
 async def add():
-    conn = boto.connect_ec2_endpoint(EC2_URL, aws_access_key_id=EC2_ACCESS_KEY, aws_secret_access_key=EC2_SECRET_KEY)
+    ec2conn = boto.connect_ec2_endpoint(EC2_URL, aws_access_key_id=EC2_ACCESS_KEY, aws_secret_access_key=EC2_SECRET_KEY)
     with open('start_node.sh') as f:
         udata = f.read()
-    print([i for i in udata])
 
-    reservation = conn.run_instances(
+    reservation = ec2conn.run_instances(
         image_id=TEMPLATE_ID,  # Шаблон
         key_name=KEY_NAME,  # Имя публичного SSH ключа
         instance_type=INSTANCE_TYPE,  # Тип (размер) виртуального сервера
@@ -62,7 +73,6 @@ async def add():
     )
 
     new_instance = reservation.instances[0]
-
     return {"detail": "Added. ID: {id}".format(id=new_instance.id)}
 
 
@@ -74,7 +84,7 @@ async def get_cpu():
                                          aws_secret_access_key=EC2_SECRET_KEY)
 
     res = {}
-    for reservation in ec2_conn.get_all_instances(filters={"subnet-id": "subnet-75C72781"}):
+    for reservation in ec2_conn.get_all_instances(filters={"subnet-id": SUBNET_ID}):
         for instance in reservation.instances:
             end = datetime.datetime.utcnow()
             start = end - datetime.timedelta(minutes=5)
