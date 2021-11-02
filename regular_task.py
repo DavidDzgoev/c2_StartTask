@@ -16,9 +16,9 @@ def regular_func():
     for reservation in ec2_conn.get_all_instances(filters={"subnet-id": SUBNET_ID}):
         for instance in reservation.instances:
             end = datetime.datetime.utcnow()
-            start = end - datetime.timedelta(minutes=1)
+            start = end - datetime.timedelta(minutes=5)
 
-            CPU = cw_conn.get_metric_statistics(period=60, namespace="AWS/EC2", start_time=start, end_time=end,
+            CPU = cw_conn.get_metric_statistics(period=300, namespace="AWS/EC2", start_time=start, end_time=end,
                                                 dimensions={"InstanceId": [instance.id]},
                                                 metric_name="CPUUtilization", statistics=["Maximum"], unit="Percent")
             if CPU:
@@ -48,4 +48,4 @@ def regular_func():
 
 while True:
     regular_func()
-    sleep(60)
+    sleep(60 * 5)

@@ -59,8 +59,6 @@ async def load():
                     stat.update({instance.id: CPU[0]["Maximum"]})
 
         target_node_ip = sorted(list(stat.items()), key=lambda x: x[1])[0][0]
-        ec2_conn = boto.connect_ec2_endpoint(EC2_URL, aws_access_key_id=EC2_ACCESS_KEY,
-                                             aws_secret_access_key=EC2_SECRET_KEY)
 
         for reservation in ec2_conn.get_all_instances(filters={"subnet-id": SUBNET_ID, "tag:role": "worker"}):
             for instance in reservation.instances:
@@ -68,12 +66,12 @@ async def load():
                     return str(requests.get("http://{private_ip_address}:5000/load".format(
                         private_ip_address=instance.private_ip_address)).text)
 
-        else:
-            load_all_cores(duration_s=60, target_load=0.8)
-            instance_id = {t: requests.get("http://169.254.169.254/latest/meta-data/{type}".format(type=t)).text for t
-                           in metadata_types}
-            return str({"detail": "Loaded {id}. CPU Usage: {cpu_usage}".format(id=instance_id['instance-id'],
-                                                                               cpu_usage=psutil.cpu_percent())})
+    else:
+        load_all_cores(duration_s=60, target_load=0.8)
+        instance_id = {t: requests.get("http://169.254.169.254/latest/meta-data/{type}".format(type=t)).text for t
+                       in metadata_types}
+        return str({"detail": "Loaded {id}. CPU Usage: {cpu_usage}".format(id=instance_id['instance-id'],
+                                                                           cpu_usage=psutil.cpu_percent())})
 
 
 @app.get("/info")
