@@ -30,7 +30,7 @@ metadata_types = [
 
 @app.get("/load")
 async def load():
-    load_all_cores(duration_s=60, target_load=0.9)
+    load_all_cores(duration_s=60, target_load=0.8)
     return str({"detail": "Loaded. CPU Usage: {cpu_usage}".format(cpu_usage=psutil.cpu_percent())})
 
 

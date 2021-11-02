@@ -13,4 +13,5 @@ pip3 install -r requirements.txt
 sudo echo 'EC2_ACCESS_KEY = "YOUR_ACCESS_KEY"
 EC2_SECRET_KEY = "YOUR_SECRET_KEY"
 ' > /home/ec2-user/c2_StartTask/secret.py
+python3 regular_task.py &
 python3 master.py
