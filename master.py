@@ -73,6 +73,7 @@ async def add():
     )
 
     new_instance = reservation.instances[0]
+    new_instance.add_tag("role", "worker")
     return {"detail": "Added. ID: {id}".format(id=new_instance.id)}
 
 
