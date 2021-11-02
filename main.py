@@ -42,13 +42,7 @@ async def load(request: Request):
 
 @app.get("/info")
 async def info():
-    return json.dumps(
-        {t: requests.get("http://169.254.169.254/latest/meta-data/{type}".format(type=t)).text for t in metadata_types},
-        ensure_ascii=False,
-        allow_nan=False,
-        indent=4,
-        separators=(", ", ": "),
-    ).encode("utf-8")
+    return {t: requests.get("http://169.254.169.254/latest/meta-data/{type}".format(type=t)).text for t in metadata_types}
 
 
 @app.get("/add")
@@ -90,13 +84,7 @@ async def get_cpu():
                                                 metric_name="CPUUtilization", statistics=['Average'], unit='Percent')
             res.update({instance.id: CPU})
 
-    return json.dumps(
-        res,
-        ensure_ascii=False,
-        allow_nan=False,
-        indent=4,
-        separators=(", ", ": "),
-    ).encode("utf-8")
+    return res
 
 if __name__ == "__main__":
     uvicorn.run(app, host='0.0.0.0', port=5000)
