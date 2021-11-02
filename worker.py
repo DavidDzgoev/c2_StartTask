@@ -35,7 +35,10 @@ async def load():
     :return: Результат нагрузки CPU
     """
     load_all_cores(duration_s=60, target_load=0.8)
-    return str({"detail": "Loaded. CPU Usage: {cpu_usage}".format(cpu_usage=psutil.cpu_percent())})
+    instance_id = {t: requests.get("http://169.254.169.254/latest/meta-data/{type}".format(type=t)).text for t
+                   in metadata_types}
+    return str({"detail": "Loaded {id}. CPU Usage: {cpu_usage}".format(id=instance_id['instance-id'],
+                                                                       cpu_usage=psutil.cpu_percent())})
 
 
 @app.get("/info")
