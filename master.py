@@ -36,17 +36,30 @@ metadata_types = [
 
 @app.get("/load")
 async def load():
+    """
+    Нагрузить кластер
+    :return: Результат нагрузки CPU
+    """
     load_all_cores(duration_s=60, target_load=0.8)
     return str({"detail": "Loaded. CPU Usage: {cpu_usage}".format(cpu_usage=psutil.cpu_percent())})
 
 
 @app.get("/info")
 async def info():
+    """
+    Получить метаданные о мастере
+    :return: метаданные
+    """
     return str({t: requests.get("http://169.254.169.254/latest/meta-data/{type}".format(type=t)).text for t in metadata_types})
 
 
 @app.get("/info/{vm_id}")
 async def info(vm_id):
+    """
+    Получить метаданные о конкретном worker
+    :param vm_id: worker's id
+    :return: метаданные или сообщение, что виртуалки с таким id нет
+    """
     ec2_conn = boto.connect_ec2_endpoint(EC2_URL, aws_access_key_id=EC2_ACCESS_KEY,
                                          aws_secret_access_key=EC2_SECRET_KEY)
 
@@ -60,6 +73,10 @@ async def info(vm_id):
 
 @app.get("/add")
 async def add():
+    """
+    Добавить worker
+    :return: worker's id
+    """
     ec2_conn = boto.connect_ec2_endpoint(EC2_URL, aws_access_key_id=EC2_ACCESS_KEY, aws_secret_access_key=EC2_SECRET_KEY)
     with open("start_node.sh") as f:
         udata = f.read()
@@ -80,6 +97,10 @@ async def add():
 
 @app.get("/get_cpu")
 async def get_cpu():
+    """
+    Получить метрику CPUUtilization со всех нодов
+    :return: Статистика
+    """
     region = RegionInfo(name="croc", endpoint="monitoring.cloud.croc.ru")
     cw_conn = CloudWatchConnection(EC2_ACCESS_KEY, EC2_SECRET_KEY, region=region)
     ec2_conn = boto.connect_ec2_endpoint(EC2_URL, aws_access_key_id=EC2_ACCESS_KEY,

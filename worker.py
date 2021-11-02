@@ -30,12 +30,20 @@ metadata_types = [
 
 @app.get("/load")
 async def load():
+    """
+    Нагрузить нод
+    :return: Результат нагрузки CPU
+    """
     load_all_cores(duration_s=60, target_load=0.8)
     return str({"detail": "Loaded. CPU Usage: {cpu_usage}".format(cpu_usage=psutil.cpu_percent())})
 
 
 @app.get("/info")
 async def info():
+    """
+    Получить метаданные о воркере
+    :return: метаданные
+    """
     return str({t: requests.get("http://169.254.169.254/latest/meta-data/{type}".format(type=t)).text for t in metadata_types})
 
 
