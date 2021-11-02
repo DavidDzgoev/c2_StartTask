@@ -1,0 +1,6 @@
+EC2_URL = "https://api.cloud.croc.ru:443"
+SUBNET_ID = "subnet-75C72781"
+TEMPLATE_ID = "cmi-2078A02B"
+INSTANCE_TYPE = "c5.medium"
+SECURITY_GROUP = "sg-8C20E123"
+KEY_NAME = "test"
