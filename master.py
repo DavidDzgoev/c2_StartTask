@@ -6,6 +6,7 @@ import boto
 from boto.ec2.cloudwatch import CloudWatchConnection
 from boto.ec2.regioninfo import RegionInfo
 from conf import *
+from secret import *
 import datetime
 import uvicorn
 
@@ -34,8 +35,8 @@ metadata_types = [
 
 
 @app.get("/load")
-async def load(request: Request):
-    load_all_cores(duration_s=60, target_load=0.8)
+async def load():
+    load_all_cores(duration_s=60, target_load=0.9)
     return {"detail": "Loaded. CPU Usage: {cpu_usage}".format(cpu_usage=psutil.cpu_percent())}
 
 
@@ -60,7 +61,7 @@ async def info(vm_id):
 @app.get("/add")
 async def add():
     ec2conn = boto.connect_ec2_endpoint(EC2_URL, aws_access_key_id=EC2_ACCESS_KEY, aws_secret_access_key=EC2_SECRET_KEY)
-    with open('start_node.sh') as f:
+    with open("start_node.sh") as f:
         udata = f.read()
 
     reservation = ec2conn.run_instances(
@@ -90,12 +91,12 @@ async def get_cpu():
             end = datetime.datetime.utcnow()
             start = end - datetime.timedelta(minutes=5)
 
-            CPU = cw_conn.get_metric_statistics(period=300, namespace='AWS/EC2', start_time=start, end_time=end,
-                                                dimensions={'InstanceId': [instance.id]},
-                                                metric_name="CPUUtilization", statistics=['Average'], unit='Percent')
+            CPU = cw_conn.get_metric_statistics(period=300, namespace="AWS/EC2", start_time=start, end_time=end,
+                                                dimensions={"InstanceId": [instance.id]},
+                                                metric_name="CPUUtilization", statistics=["Average"], unit="Percent")
             res.update({instance.id: CPU})
 
     return res
 
 if __name__ == "__main__":
-    uvicorn.run(app, host='0.0.0.0', port=5000)
+    uvicorn.run(app, host="0.0.0.0", port=5000)

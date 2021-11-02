@@ -1,12 +1,7 @@
 from cpu_load_generator import load_all_cores
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 import requests
 import psutil
-import boto
-from boto.ec2.cloudwatch import CloudWatchConnection
-from boto.ec2.regioninfo import RegionInfo
-from conf import *
-import datetime
 import uvicorn
 
 
@@ -34,8 +29,8 @@ metadata_types = [
 
 
 @app.get("/load")
-async def load(request: Request):
-    load_all_cores(duration_s=60, target_load=0.8)
+async def load():
+    load_all_cores(duration_s=60, target_load=0.9)
     return {"detail": "Loaded. CPU Usage: {cpu_usage}".format(cpu_usage=psutil.cpu_percent())}
 
 
@@ -45,4 +40,4 @@ async def info():
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host='0.0.0.0', port=5000)
+    uvicorn.run(app, host="0.0.0.0", port=5000)
