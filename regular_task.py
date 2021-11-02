@@ -48,4 +48,4 @@ def regular_func():
 
 while True:
     regular_func()
-    sleep(60 * 5)
+    sleep(60)
