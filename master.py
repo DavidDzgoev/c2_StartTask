@@ -1,5 +1,6 @@
 from cpu_load_generator import load_all_cores
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
+from starlette.responses import RedirectResponse
 import requests
 import psutil
 import boto
@@ -9,6 +10,7 @@ from conf import *
 from secret import *
 import datetime
 import uvicorn
+from fastapi_utils.tasks import repeat_every
 
 
 app = FastAPI()
@@ -37,12 +39,12 @@ metadata_types = [
 @app.get("/load")
 async def load():
     load_all_cores(duration_s=60, target_load=0.9)
-    return {"detail": "Loaded. CPU Usage: {cpu_usage}".format(cpu_usage=psutil.cpu_percent())}
+    return str({"detail": "Loaded. CPU Usage: {cpu_usage}".format(cpu_usage=psutil.cpu_percent())})
 
 
 @app.get("/info")
 async def info():
-    return {t: requests.get("http://169.254.169.254/latest/meta-data/{type}".format(type=t)).text for t in metadata_types}
+    return str({t: requests.get("http://169.254.169.254/latest/meta-data/{type}".format(type=t)).text for t in metadata_types})
 
 
 @app.get("/info/{vm_id}")
@@ -53,9 +55,9 @@ async def info(vm_id):
     for reservation in ec2_conn.get_all_instances(filters={"subnet-id": SUBNET_ID, "tag:role": "worker"}):
         for instance in reservation.instances:
             if instance.id == vm_id:
-                return requests.get("http://{private_ip_address}/info".format(private_ip_address=instance.private_ip_address))
+                return str(requests.get("http://{private_ip_address}:5000/info".format(private_ip_address=instance.private_ip_address)).text)
 
-    return {"detail": "Instance with such id doesn't exist"}
+    return str({"detail": "Instance with such id doesn't exist"})
 
 
 @app.get("/add")
@@ -65,17 +67,17 @@ async def add():
         udata = f.read()
 
     reservation = ec2conn.run_instances(
-        image_id=TEMPLATE_ID,  # Шаблон
-        key_name=KEY_NAME,  # Имя публичного SSH ключа
-        instance_type=INSTANCE_TYPE,  # Тип (размер) виртуального сервера
-        security_group_ids=[SECURITY_GROUP],  # Группа безопасности
-        subnet_id=SUBNET_ID,  # Подсеть
-        user_data=udata  # Пользовательские данные
+        image_id=TEMPLATE_ID,
+        key_name=KEY_NAME,
+        instance_type=INSTANCE_TYPE,
+        security_group_ids=[SECURITY_GROUP],
+        subnet_id=SUBNET_ID,
+        user_data=udata
     )
 
     new_instance = reservation.instances[0]
     new_instance.add_tag("role", "worker")
-    return {"detail": "Added. ID: {id}".format(id=new_instance.id)}
+    return str({"detail": "Added. ID: {id}".format(id=new_instance.id)})
 
 
 @app.get("/get_cpu")
@@ -93,10 +95,32 @@ async def get_cpu():
 
             CPU = cw_conn.get_metric_statistics(period=300, namespace="AWS/EC2", start_time=start, end_time=end,
                                                 dimensions={"InstanceId": [instance.id]},
-                                                metric_name="CPUUtilization", statistics=["Average"], unit="Percent")
+                                                metric_name="CPUUtilization", statistics=["Maximum"], unit="Percent")
             res.update({instance.id: CPU})
 
-    return res
+    return str(res)
+
+
+@app.on_event("startup")
+@repeat_every(seconds=60)
+def check_cpu() -> None:
+    region = RegionInfo(name="croc", endpoint="monitoring.cloud.croc.ru")
+    cw_conn = CloudWatchConnection(EC2_ACCESS_KEY, EC2_SECRET_KEY, region=region)
+    ec2_conn = boto.connect_ec2_endpoint(EC2_URL, aws_access_key_id=EC2_ACCESS_KEY,
+                                         aws_secret_access_key=EC2_SECRET_KEY)
+
+    for reservation in ec2_conn.get_all_instances(filters={"subnet-id": SUBNET_ID}):
+        for instance in reservation.instances:
+            end = datetime.datetime.utcnow()
+            start = end - datetime.timedelta(minutes=5)
+
+            CPU = cw_conn.get_metric_statistics(period=300, namespace="AWS/EC2", start_time=start, end_time=end,
+                                                dimensions={"InstanceId": [instance.id]},
+                                                metric_name="CPUUtilization", statistics=["Maximum"], unit="Percent")
+            if CPU["Maximum"] > 70:
+                print('ALARM')
+                return RedirectResponse('/add')
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=5000)
