@@ -10,5 +10,4 @@ sudo apt-get install python3-pip -y
 pip3 install --upgrade pip
 cd c2_StartTask/
 pip3 install -r requirements.txt
-python3 regular_task.py &
 python3 worker.py
