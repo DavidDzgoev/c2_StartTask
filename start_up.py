@@ -1,6 +1,17 @@
 import boto
 
-from conf import EC2_URL, INSTANCE_TYPE, KEY_NAME, SECURITY_GROUP, SUBNET_ID, TEMPLATE_ID
+from boto.ec2.cloudwatch import CloudWatchConnection
+from boto.ec2.regioninfo import RegionInfo
+from boto.ec2.cloudwatch.alarm import MetricAlarm
+
+from conf import (
+    EC2_URL,
+    INSTANCE_TYPE,
+    KEY_NAME,
+    SECURITY_GROUP,
+    SUBNET_ID,
+    TEMPLATE_ID,
+)
 from secret import EC2_ACCESS_KEY, EC2_SECRET_KEY
 
 conn = boto.connect_ec2_endpoint(
@@ -20,5 +31,22 @@ with open("start_master_node.sh") as f:
 
     new_instance = reservation.instances[0]
     new_instance.add_tag("role", "master")
+
+    region = RegionInfo(name="croc", endpoint="monitoring.cloud.croc.ru")
+    cw_conn = CloudWatchConnection(EC2_ACCESS_KEY, EC2_SECRET_KEY, region=region)
+    new_alarm = MetricAlarm(
+        connection=cw_conn,
+        name=f"CPU_{new_instance.id}",
+        metric="CPUUtilization",
+        description="Start_Task",
+        namespace="AWS/EC2",
+        statistic="Maximum",
+        comparison=">=",
+        threshold=40,
+        period=60,
+        evaluation_periods=5,
+        dimensions={"InstanceId": [new_instance.id]},
+    )
+    cw_conn.create_alarm(new_alarm)
 
     print(f"Added. ID: {new_instance.id}")

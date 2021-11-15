@@ -17,10 +17,7 @@ async def load() -> str:
     """
     load_all_cores(duration_s=60, target_load=0.8)
     instance_id = {
-        type: requests.get(
-            f"{METADATA_URL}{type}"
-        ).text
-        for type in METADATA_TYPES
+        type: requests.get(f"{METADATA_URL}{type}").text for type in METADATA_TYPES
     }
     return str(
         {
@@ -36,12 +33,7 @@ async def info() -> str:
     :return: metadata for all types
     """
     return str(
-        {
-            type: requests.get(
-                f"{METADATA_URL}{type}"
-            ).text
-            for type in METADATA_TYPES
-        }
+        {type: requests.get(f"{METADATA_URL}{type}").text for type in METADATA_TYPES}
     )
 
 

@@ -9,8 +9,17 @@ from boto.ec2.regioninfo import RegionInfo
 from cpu_load_generator import load_all_cores
 from fastapi import FastAPI
 
-from conf import EC2_URL, INSTANCE_TYPE, KEY_NAME, METADATA_TYPES, METADATA_URL, PORT, SECURITY_GROUP, SUBNET_ID, \
-    TEMPLATE_ID
+from conf import (
+    EC2_URL,
+    INSTANCE_TYPE,
+    KEY_NAME,
+    METADATA_TYPES,
+    METADATA_URL,
+    PORT,
+    SECURITY_GROUP,
+    SUBNET_ID,
+    TEMPLATE_ID,
+)
 from secret import EC2_ACCESS_KEY, EC2_SECRET_KEY
 
 app = FastAPI()
@@ -66,10 +75,7 @@ async def load() -> str:
     else:
         load_all_cores(duration_s=60, target_load=0.8)
         instance_id = {
-            type: requests.get(
-                f"{METADATA_URL}{type}"
-            ).text
-            for type in METADATA_TYPES
+            type: requests.get(f"{METADATA_URL}{type}").text for type in METADATA_TYPES
         }
         return str(
             {
@@ -85,12 +91,7 @@ async def info() -> str:
     :return: metadata for all types
     """
     return str(
-        {
-            type: requests.get(
-                f"{METADATA_URL}{type}"
-            ).text
-            for type in METADATA_TYPES
-        }
+        {type: requests.get(f"{METADATA_URL}{type}").text for type in METADATA_TYPES}
     )
 
 
@@ -111,9 +112,7 @@ async def info(instance_id) -> str:
         for instance in reservation.instances:
             if instance.id == instance_id:
                 return str(
-                    requests.get(
-                        f"http://{instance.private_ip_address}:5000/info"
-                    ).text
+                    requests.get(f"http://{instance.private_ip_address}:5000/info").text
                 )
 
     return str({"detail": "Instance with such id doesn't exist"})
