@@ -1,4 +1,3 @@
-import datetime
 from time import sleep
 
 import boto
@@ -28,7 +27,9 @@ def regular_task() -> None:
     )
 
     alarms = cw_conn.describe_alarms()
-    alarms_state_values = set([alarm.state_value for alarm in alarms if alarm.description == "Start_Task"])
+    alarms_state_values = set(
+        [alarm.state_value for alarm in alarms if alarm.description == "Start_Task"]
+    )
 
     if "alarm" in alarms_state_values:
         with open("start_node.sh") as f:

@@ -42,7 +42,7 @@ with open("start_master_node.sh") as f:
         namespace="AWS/EC2",
         statistic="Maximum",
         comparison=">=",
-        threshold=40,
+        threshold=70,
         period=60,
         evaluation_periods=5,
         dimensions={"InstanceId": [new_instance.id]},
