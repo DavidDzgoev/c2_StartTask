@@ -4,15 +4,15 @@ from boto.ec2.cloudwatch import CloudWatchConnection
 from boto.ec2.regioninfo import RegionInfo
 from boto.ec2.cloudwatch.alarm import MetricAlarm
 
-from conf import (
+from user_conf import (
     EC2_URL,
     INSTANCE_TYPE,
-    KEY_NAME,
     SECURITY_GROUP,
     SUBNET_ID,
     TEMPLATE_ID,
+    EC2_ACCESS_KEY,
+    EC2_SECRET_KEY,
 )
-from secret import EC2_ACCESS_KEY, EC2_SECRET_KEY
 
 conn = boto.connect_ec2_endpoint(
     EC2_URL, aws_access_key_id=EC2_ACCESS_KEY, aws_secret_access_key=EC2_SECRET_KEY
@@ -22,7 +22,6 @@ with open("start_master_node.sh") as f:
 
     reservation = conn.run_instances(
         image_id=TEMPLATE_ID,
-        key_name=KEY_NAME,
         instance_type=INSTANCE_TYPE,
         security_group_ids=[SECURITY_GROUP],
         subnet_id=SUBNET_ID,

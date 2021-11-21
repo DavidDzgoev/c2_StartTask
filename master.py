@@ -9,20 +9,34 @@ from boto.ec2.regioninfo import RegionInfo
 from cpu_load_generator import load_all_cores
 from fastapi import FastAPI
 
-from conf import (
+from conf import METADATA_TYPES, METADATA_URL, PORT
+from user_conf import (
+    EC2_ACCESS_KEY,
+    EC2_SECRET_KEY,
     EC2_URL,
     INSTANCE_TYPE,
-    KEY_NAME,
-    METADATA_TYPES,
-    METADATA_URL,
-    PORT,
     SECURITY_GROUP,
     SUBNET_ID,
     TEMPLATE_ID,
 )
-from secret import EC2_ACCESS_KEY, EC2_SECRET_KEY
 
 app = FastAPI()
+
+
+def collect_metadata(res: dict, metdata_types: list) -> dict:
+    """
+    Recursive function for collecting metadata
+    :param res: the dict to which the metadata will be added
+    :param metdata_types: list of metadata types
+    :return: updated dict
+    """
+    for type in metdata_types:
+        if type[-1] != "/":
+            res[type] = requests.get(f"{METADATA_URL}{type}").text
+        else:
+            res = collect_metadata(res, metdata_types)
+
+    return res
 
 
 @app.get("/load")
@@ -90,9 +104,9 @@ async def info() -> str:
     Get worker metadata
     :return: metadata for all types
     """
-    return str(
-        {type: requests.get(f"{METADATA_URL}{type}").text for type in METADATA_TYPES}
-    )
+    result = dict()
+
+    return str(collect_metadata(result, METADATA_TYPES))
 
 
 @app.get("/info/{instance_id}")
@@ -132,7 +146,6 @@ async def add() -> str:
 
     reservation = ec2_conn.run_instances(
         image_id=TEMPLATE_ID,
-        key_name=KEY_NAME,
         instance_type=INSTANCE_TYPE,
         security_group_ids=[SECURITY_GROUP],
         subnet_id=SUBNET_ID,

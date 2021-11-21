@@ -12,6 +12,10 @@ cd c2_StartTask/
 pip3 install -r requirements.txt
 sudo echo 'EC2_ACCESS_KEY = "YOUR_ACCESS_KEY"
 EC2_SECRET_KEY = "YOUR_SECRET_KEY"
-' > /home/ec2-user/c2_StartTask/secret.py
+EC2_URL = "https://api.cloud.croc.ru:443"
+SUBNET_ID = "subnet-75C72781"
+TEMPLATE_ID = "cmi-2078A02B"
+INSTANCE_TYPE = "c5.medium"
+SECURITY_GROUP = "sg-8C20E123"' > /home/ec2-user/c2_StartTask/user_conf.py
 python3 regular_task.py &
 python3 master.py

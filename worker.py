@@ -9,6 +9,22 @@ from conf import METADATA_TYPES, METADATA_URL, PORT
 app = FastAPI()
 
 
+def collect_metadata(res: dict, metdata_types: list) -> dict:
+    """
+    Recursive function for collecting metadata
+    :param res: the dict to which the metadata will be added
+    :param metdata_types: list of metadata types
+    :return: updated dict
+    """
+    for type in metdata_types:
+        if type[-1] != "/":
+            res[type] = requests.get(f"{METADATA_URL}{type}").text
+        else:
+            res = collect_metadata(res, metdata_types)
+
+    return res
+
+
 @app.get("/load")
 async def load() -> str:
     """
@@ -32,9 +48,9 @@ async def info() -> str:
     Get worker metadata
     :return: metadata for all types
     """
-    return str(
-        {type: requests.get(f"{METADATA_URL}{type}").text for type in METADATA_TYPES}
-    )
+    result = dict()
+
+    return str(collect_metadata(result, METADATA_TYPES))
 
 
 if __name__ == "__main__":
