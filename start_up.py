@@ -84,7 +84,7 @@ with open("start_node.sh") as f:
         namespace="AWS/EC2",
         statistic="Maximum",
         comparison=">=",
-        threshold=70,
+        threshold=50,
         period=60,
         evaluation_periods=1,
         dimensions={"InstanceId": [worker_instance.id]},
