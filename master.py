@@ -54,7 +54,9 @@ async def load() -> JSONResponse:
     )
 
     stat = {}
-    for reservation in ec2_conn.get_all_instances(filters={"subnet-id": SUBNET_ID, "tag:role": "worker"}):
+    for reservation in ec2_conn.get_all_instances(
+        filters={"subnet-id": SUBNET_ID, "tag:role": "worker"}
+    ):
         for instance in reservation.instances:
             end = datetime.datetime.utcnow()
             start = end - datetime.timedelta(minutes=5)
@@ -79,10 +81,8 @@ async def load() -> JSONResponse:
     ):
         for instance in reservation.instances:
             return JSONResponse(
-                    requests.get(
-                        f"http://{instance.private_ip_address}:{PORT}/load"
-                    ).json()
-                )
+                requests.get(f"http://{instance.private_ip_address}:{PORT}/load").json()
+            )
 
 
 @app.get("/info")
@@ -105,11 +105,11 @@ async def info(instance_id) -> JSONResponse:
         EC2_URL, aws_access_key_id=EC2_ACCESS_KEY, aws_secret_access_key=EC2_SECRET_KEY
     )
 
-    for reservation in ec2_conn.get_all_instances(
-        filters={"instance-id": instance_id}
-    ):
+    for reservation in ec2_conn.get_all_instances(filters={"instance-id": instance_id}):
         for instance in reservation.instances:
-            return JSONResponse(requests.get(f"http://{instance.private_ip_address}:{PORT}/info").json())
+            return JSONResponse(
+                requests.get(f"http://{instance.private_ip_address}:{PORT}/info").json()
+            )
 
     return JSONResponse({"detail": "Instance with such id doesn't exist"})
 

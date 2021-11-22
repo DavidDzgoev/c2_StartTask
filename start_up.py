@@ -47,12 +47,21 @@ with open("start_master_node.sh") as f:
         EC2_URL, aws_access_key_id=EC2_ACCESS_KEY, aws_secret_access_key=EC2_SECRET_KEY
     )
 
-    if ec2_conn.get_all_instances(filters={"instance-id": master_instance.id})[0].instances[0].ip_address is None:
+    if (
+        ec2_conn.get_all_instances(filters={"instance-id": master_instance.id})[0]
+        .instances[0]
+        .ip_address
+        is None
+    ):
         master_address = ec2_conn.allocate_address()
         master_address.associate(master_instance.id)
         ip = master_address.public_ip
     else:
-        ip = ec2_conn.get_all_instances(filters={"instance-id": master_instance.id})[0].instances[0].ip_address
+        ip = (
+            ec2_conn.get_all_instances(filters={"instance-id": master_instance.id})[0]
+            .instances[0]
+            .ip_address
+        )
 
     ec2_conn = boto.connect_ec2_endpoint(
         EC2_URL, aws_access_key_id=EC2_ACCESS_KEY, aws_secret_access_key=EC2_SECRET_KEY
@@ -93,9 +102,11 @@ with open("start_node.sh") as f:
 
 
 # time of deploying
-sleep(60*4.5)
+sleep(60 * 4.5)
 
 if requests.get(f"http://{ip}:{PORT}/info").status_code == 200:
-    print(f"Added. Master_ID: {master_instance.id}; Worker_id: {worker_instance.id}; URL: http://{ip}:{PORT}/")
+    print(
+        f"Added. Master_ID: {master_instance.id}; Worker_id: {worker_instance.id}; URL: http://{ip}:{PORT}/"
+    )
 else:
-    print('UNKNOWN ERROR')
+    print("UNKNOWN ERROR")

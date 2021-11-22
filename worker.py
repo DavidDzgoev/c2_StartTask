@@ -34,9 +34,7 @@ async def load() -> JSONResponse:
     load_all_cores(duration_s=60, target_load=0.8)
     instance_id = requests.get(f"{METADATA_URL}/instance-id").text
     return JSONResponse(
-        {
-            "detail": f"Loaded {instance_id}. CPU Usage: {psutil.cpu_percent()}"
-        }
+        {"detail": f"Loaded {instance_id}. CPU Usage: {psutil.cpu_percent()}"}
     )
 
 
