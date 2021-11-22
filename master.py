@@ -31,11 +31,11 @@ def collect_metadata(cur_url: str = METADATA_URL) -> dict:
     :return: metadata as nested dict
     """
     result = {}
-    for type in requests.get(f"{cur_url}").text.split("\n"):
+    for type in requests.get(cur_url).text.split("\n"):
         if type[-1] == "/":
-            result[type[:-1]] = collect_metadata(cur_url + type)
+            result[type[:-1]] = collect_metadata(f"{cur_url}/{type}")
         else:
-            result[type] = requests.get(f"{cur_url}{type}").text.split("\n")
+            result[type] = requests.get(f"{cur_url}/{type}").text.split("\n")
     return result
 
 
@@ -156,39 +156,6 @@ async def add() -> JSONResponse:
     cw_conn.create_alarm(new_alarm)
 
     return JSONResponse({"detail": f"Added. ID: {new_instance.id}"})
-
-
-@app.get("/get_cpu")
-async def get_cpu() -> JSONResponse:
-    """
-    Get CPUUtilization of all nodes in subnet
-    :return: metric stats
-    """
-    region = RegionInfo(name="croc", endpoint="monitoring.cloud.croc.ru")
-    cw_conn = CloudWatchConnection(EC2_ACCESS_KEY, EC2_SECRET_KEY, region=region)
-    ec2_conn = boto.connect_ec2_endpoint(
-        EC2_URL, aws_access_key_id=EC2_ACCESS_KEY, aws_secret_access_key=EC2_SECRET_KEY
-    )
-
-    res = {}
-    for reservation in ec2_conn.get_all_instances(filters={"subnet-id": SUBNET_ID}):
-        for instance in reservation.instances:
-            end = datetime.datetime.utcnow()
-            start = end - datetime.timedelta(minutes=1)
-
-            CPU = cw_conn.get_metric_statistics(
-                period=60,
-                namespace="AWS/EC2",
-                start_time=start,
-                end_time=end,
-                dimensions={"InstanceId": [instance.id]},
-                metric_name="CPUUtilization",
-                statistics=["Maximum"],
-                unit="Percent",
-            )
-            res.update({instance.id: CPU})
-
-    return JSONResponse(res)
 
 
 if __name__ == "__main__":

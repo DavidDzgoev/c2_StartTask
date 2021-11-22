@@ -95,7 +95,7 @@ with open("start_node.sh") as f:
 # time of deploying
 sleep(60*4.5)
 
-if requests.get(f"http://{ip}:{PORT}/get_cpu").status_code == 200:
+if requests.get(f"http://{ip}:{PORT}/info").status_code == 200:
     print(f"Added. Master_ID: {master_instance.id}; Worker_id: {worker_instance.id}; URL: http://{ip}:{PORT}/")
 else:
     print('UNKNOWN ERROR')
