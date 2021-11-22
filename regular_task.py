@@ -14,6 +14,8 @@ from user_conf import (
     EC2_SECRET_KEY,
 )
 
+print('REGULAR TASK ACTIVATED')
+
 
 def regular_task() -> None:
     """

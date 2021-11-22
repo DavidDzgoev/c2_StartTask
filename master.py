@@ -23,18 +23,20 @@ from user_conf import (
 app = FastAPI()
 
 
-def collect_metadata(res: dict, metdata_types: list) -> dict:
+def collect_metadata(
+    res: dict, cur_url: str = "http://169.254.169.254/latest/meta-data/"
+) -> dict:
     """
     Recursive function for collecting metadata
     :param res: the dict to which the metadata will be added
-    :param metdata_types: list of metadata types
+    :param cur_url: current url
     :return: updated dict
     """
-    for type in metdata_types:
+    for type in requests.get(f"{cur_url}").text.split("\n"):
         if type[-1] != "/":
-            res[type] = requests.get(f"{METADATA_URL}{type}").text
+            res[f"{cur_url}{type}"] = requests.get(f"{cur_url}{type}").text.split("\n")
         else:
-            res = collect_metadata(res, metdata_types)
+            res = collect_metadata(res, cur_url + type)
 
     return res
 
@@ -106,7 +108,7 @@ async def info() -> str:
     """
     result = dict()
 
-    return str(collect_metadata(result, METADATA_TYPES))
+    return str(collect_metadata(result))
 
 
 @app.get("/info/{instance_id}")
