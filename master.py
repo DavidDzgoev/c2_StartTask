@@ -1,20 +1,21 @@
 import datetime
 
 import boto
-import psutil
 import requests
 import uvicorn
 from boto.ec2.cloudwatch import CloudWatchConnection
 from boto.ec2.regioninfo import RegionInfo
-from cpu_load_generator import load_all_cores
+from boto.ec2.cloudwatch.alarm import MetricAlarm
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 
-from conf import METADATA_TYPES, METADATA_URL, PORT
+from conf import METADATA_URL, PORT
 from user_conf import (
     EC2_ACCESS_KEY,
     EC2_SECRET_KEY,
     EC2_URL,
     INSTANCE_TYPE,
+    KEY_NAME,
     SECURITY_GROUP,
     SUBNET_ID,
     TEMPLATE_ID,
@@ -23,96 +24,79 @@ from user_conf import (
 app = FastAPI()
 
 
-def collect_metadata(
-    res: dict, cur_url: str = "http://169.254.169.254/latest/meta-data/"
-) -> dict:
+def collect_metadata(cur_url: str = METADATA_URL) -> dict:
     """
     Recursive function for collecting metadata
-    :param res: the dict to which the metadata will be added
     :param cur_url: current url
-    :return: updated dict
+    :return: metadata as nested dict
     """
+    result = {}
     for type in requests.get(f"{cur_url}").text.split("\n"):
-        if type[-1] != "/":
-            res[f"{cur_url}{type}"] = requests.get(f"{cur_url}{type}").text.split("\n")
+        if type[-1] == "/":
+            result[type[:-1]] = collect_metadata(cur_url + type)
         else:
-            res = collect_metadata(res, cur_url + type)
-
-    return res
+            result[type] = requests.get(f"{cur_url}{type}").text.split("\n")
+    return result
 
 
 @app.get("/load")
-async def load() -> str:
+async def load() -> JSONResponse:
     """
-    Load master or worker
+    Load worker
     :return: result CPU Utilization
     """
-    if psutil.cpu_percent() > 50:
-        region = RegionInfo(name="croc", endpoint="monitoring.cloud.croc.ru")
-        cw_conn = CloudWatchConnection(EC2_ACCESS_KEY, EC2_SECRET_KEY, region=region)
-        ec2_conn = boto.connect_ec2_endpoint(
-            EC2_URL,
-            aws_access_key_id=EC2_ACCESS_KEY,
-            aws_secret_access_key=EC2_SECRET_KEY,
-        )
+    region = RegionInfo(name="croc", endpoint="monitoring.cloud.croc.ru")
+    cw_conn = CloudWatchConnection(EC2_ACCESS_KEY, EC2_SECRET_KEY, region=region)
+    ec2_conn = boto.connect_ec2_endpoint(
+        EC2_URL,
+        aws_access_key_id=EC2_ACCESS_KEY,
+        aws_secret_access_key=EC2_SECRET_KEY,
+    )
 
-        stat = {}
-        for reservation in ec2_conn.get_all_instances(filters={"subnet-id": SUBNET_ID}):
-            for instance in reservation.instances:
-                end = datetime.datetime.utcnow()
-                start = end - datetime.timedelta(minutes=5)
+    stat = {}
+    for reservation in ec2_conn.get_all_instances(filters={"subnet-id": SUBNET_ID, "tag:role": "worker"}):
+        for instance in reservation.instances:
+            end = datetime.datetime.utcnow()
+            start = end - datetime.timedelta(minutes=5)
 
-                CPU = cw_conn.get_metric_statistics(
-                    period=300,
-                    namespace="AWS/EC2",
-                    start_time=start,
-                    end_time=end,
-                    dimensions={"InstanceId": [instance.id]},
-                    metric_name="CPUUtilization",
-                    statistics=["Maximum"],
-                    unit="Percent",
+            CPU = cw_conn.get_metric_statistics(
+                period=300,
+                namespace="AWS/EC2",
+                start_time=start,
+                end_time=end,
+                dimensions={"InstanceId": [instance.id]},
+                metric_name="CPUUtilization",
+                statistics=["Maximum"],
+                unit="Percent",
+            )
+            if CPU:
+                stat.update({instance.id: CPU[0]["Maximum"]})
+
+    target_node_ip = sorted(list(stat.items()), key=lambda x: x[1])[0][0]
+
+    for reservation in ec2_conn.get_all_instances(
+        filters={"instance-id": target_node_ip}
+    ):
+        for instance in reservation.instances:
+            return JSONResponse(
+                    requests.get(
+                        f"http://{instance.private_ip_address}:{PORT}/load"
+                    ).json()
                 )
-                if CPU:
-                    stat.update({instance.id: CPU[0]["Maximum"]})
-
-        target_node_ip = sorted(list(stat.items()), key=lambda x: x[1])[0][0]
-
-        for reservation in ec2_conn.get_all_instances(
-            filters={"subnet-id": SUBNET_ID, "tag:role": "worker"}
-        ):
-            for instance in reservation.instances:
-                if instance.id == target_node_ip:
-                    return str(
-                        requests.get(
-                            f"http://{instance.private_ip_address}:5000/load"
-                        ).text
-                    )
-
-    else:
-        load_all_cores(duration_s=60, target_load=0.8)
-        instance_id = {
-            type: requests.get(f"{METADATA_URL}{type}").text for type in METADATA_TYPES
-        }
-        return str(
-            {
-                "detail": f"Loaded {instance_id['instance-id']}. CPU Usage: {psutil.cpu_percent()}"
-            }
-        )
 
 
 @app.get("/info")
-async def info() -> str:
+async def info() -> JSONResponse:
     """
-    Get worker metadata
+    Get master metadata
     :return: metadata for all types
     """
-    result = dict()
 
-    return str(collect_metadata(result))
+    return JSONResponse(collect_metadata())
 
 
 @app.get("/info/{instance_id}")
-async def info(instance_id) -> str:
+async def info(instance_id) -> JSONResponse:
     """
     Get specific worker metadata
     :param instance_id
@@ -123,19 +107,16 @@ async def info(instance_id) -> str:
     )
 
     for reservation in ec2_conn.get_all_instances(
-        filters={"subnet-id": SUBNET_ID, "tag:role": "worker"}
+        filters={"instance-id": instance_id}
     ):
         for instance in reservation.instances:
-            if instance.id == instance_id:
-                return str(
-                    requests.get(f"http://{instance.private_ip_address}:5000/info").text
-                )
+            return JSONResponse(requests.get(f"http://{instance.private_ip_address}:{PORT}/info").json())
 
-    return str({"detail": "Instance with such id doesn't exist"})
+    return JSONResponse({"detail": "Instance with such id doesn't exist"})
 
 
 @app.get("/add")
-async def add() -> str:
+async def add() -> JSONResponse:
     """
     Add worker
     :return: new worker's id
@@ -148,6 +129,7 @@ async def add() -> str:
 
     reservation = ec2_conn.run_instances(
         image_id=TEMPLATE_ID,
+        key_name=KEY_NAME,
         instance_type=INSTANCE_TYPE,
         security_group_ids=[SECURITY_GROUP],
         subnet_id=SUBNET_ID,
@@ -156,11 +138,29 @@ async def add() -> str:
 
     new_instance = reservation.instances[0]
     new_instance.add_tag("role", "worker")
-    return str({"detail": f"Added. ID: {new_instance.id}"})
+
+    region = RegionInfo(name="croc", endpoint="monitoring.cloud.croc.ru")
+    cw_conn = CloudWatchConnection(EC2_ACCESS_KEY, EC2_SECRET_KEY, region=region)
+    new_alarm = MetricAlarm(
+        connection=cw_conn,
+        name=f"CPU_{new_instance.id}",
+        metric="CPUUtilization",
+        description="Start_Task",
+        namespace="AWS/EC2",
+        statistic="Maximum",
+        comparison=">=",
+        threshold=70,
+        period=60,
+        evaluation_periods=5,
+        dimensions={"InstanceId": [new_instance.id]},
+    )
+    cw_conn.create_alarm(new_alarm)
+
+    return JSONResponse({"detail": f"Added. ID: {new_instance.id}"})
 
 
 @app.get("/get_cpu")
-async def get_cpu() -> str:
+async def get_cpu() -> JSONResponse:
     """
     Get CPUUtilization of all nodes in subnet
     :return: metric stats
@@ -189,7 +189,7 @@ async def get_cpu() -> str:
             )
             res.update({instance.id: CPU})
 
-    return str(res)
+    return JSONResponse(res)
 
 
 if __name__ == "__main__":
