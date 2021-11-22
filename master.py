@@ -91,7 +91,6 @@ async def info() -> JSONResponse:
     Get master metadata
     :return: metadata for all types
     """
-
     return JSONResponse(collect_metadata())
 
 

@@ -86,7 +86,7 @@ with open("start_node.sh") as f:
         comparison=">=",
         threshold=70,
         period=60,
-        evaluation_periods=5,
+        evaluation_periods=1,
         dimensions={"InstanceId": [worker_instance.id]},
     )
     cw_conn.create_alarm(new_alarm)
