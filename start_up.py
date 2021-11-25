@@ -21,6 +21,8 @@ from user_conf import (
 ec2_conn = boto.connect_ec2_endpoint(
     EC2_URL, aws_access_key_id=EC2_ACCESS_KEY, aws_secret_access_key=EC2_SECRET_KEY
 )
+region = RegionInfo(name="croc", endpoint="monitoring.cloud.croc.ru")
+cw_conn = CloudWatchConnection(EC2_ACCESS_KEY, EC2_SECRET_KEY, region=region)
 
 # create master
 with open("start_master_node.sh") as f:
@@ -38,34 +40,19 @@ with open("start_master_node.sh") as f:
     master_instance = reservation.instances[0]
     master_instance.add_tag("role", "master")
 
-    region = RegionInfo(name="croc", endpoint="monitoring.cloud.croc.ru")
-    cw_conn = CloudWatchConnection(EC2_ACCESS_KEY, EC2_SECRET_KEY, region=region)
-
     sleep(30)
 
-    ec2_conn = boto.connect_ec2_endpoint(
-        EC2_URL, aws_access_key_id=EC2_ACCESS_KEY, aws_secret_access_key=EC2_SECRET_KEY
-    )
-
-    if (
+    ip = (
         ec2_conn.get_all_instances(filters={"instance-id": master_instance.id})[0]
         .instances[0]
         .ip_address
-        is None
-    ):
+    )
+
+    if ip is None:
         master_address = ec2_conn.allocate_address()
         master_address.associate(master_instance.id)
         ip = master_address.public_ip
-    else:
-        ip = (
-            ec2_conn.get_all_instances(filters={"instance-id": master_instance.id})[0]
-            .instances[0]
-            .ip_address
-        )
 
-    ec2_conn = boto.connect_ec2_endpoint(
-        EC2_URL, aws_access_key_id=EC2_ACCESS_KEY, aws_secret_access_key=EC2_SECRET_KEY
-    )
 
 # create worker
 with open("start_node.sh") as f:
@@ -83,8 +70,6 @@ with open("start_node.sh") as f:
     worker_instance = reservation.instances[0]
     worker_instance.add_tag("role", "worker")
 
-    region = RegionInfo(name="croc", endpoint="monitoring.cloud.croc.ru")
-    cw_conn = CloudWatchConnection(EC2_ACCESS_KEY, EC2_SECRET_KEY, region=region)
     new_alarm = MetricAlarm(
         connection=cw_conn,
         name=f"CPU_{worker_instance.id}",
