@@ -25,10 +25,10 @@ def regular_task() -> None:
     )
 
     if "alarm" in alarms_state_values:
-        requests.get(f"localhost:{PORT}/add")
+        requests.get(f"http://localhost:{PORT}/add")
 
     else:
-        requests.get(f"localhost:{PORT}/terminate")
+        requests.get(f"http://localhost:{PORT}/terminate")
 
 
 while True:
