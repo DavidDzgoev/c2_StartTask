@@ -4,6 +4,7 @@ import requests
 from boto.ec2.cloudwatch import CloudWatchConnection
 from boto.ec2.regioninfo import RegionInfo
 
+from conf import PORT
 from user_conf import (
     EC2_ACCESS_KEY,
     EC2_SECRET_KEY,
@@ -24,12 +25,12 @@ def regular_task() -> None:
     )
 
     if "alarm" in alarms_state_values:
-        requests.get("localhost:5000/add")
+        requests.get(f"localhost:{PORT}/add")
 
     else:
-        requests.get("localhost:5000/terminate")
+        requests.get(f"localhost:{PORT}/terminate")
 
 
 while True:
-    regular_task()
     sleep(60)
+    regular_task()
