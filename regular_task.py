@@ -32,4 +32,4 @@ def regular_task() -> None:
 
 while True:
     regular_task()
-    sleep(60)
+    sleep(60 * 2)
