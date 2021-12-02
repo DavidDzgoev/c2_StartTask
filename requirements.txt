@@ -1,0 +1,6 @@
+boto==2.49.0
+cpu_load_generator==1.2.0
+fastapi==0.70.0
+psutil==5.8.0
+requests==2.26.0
+uvicorn==0.15.0
